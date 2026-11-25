@@ -1,0 +1,38 @@
+<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="nexus-grad-1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#38BDF8" />
+      <stop offset="50%" stopColor="#2563EB" />
+      <stop offset="100%" stopColor="#1D4ED8" />
+    </linearGradient>
+    <linearGradient id="nexus-grad-diag" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#67E8F9" />
+      <stop offset="50%" stopColor="#818CF8" />
+      <stop offset="100%" stopColor="#C084FC" />
+    </linearGradient>
+    <linearGradient id="nexus-grad-2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#A855F7" />
+      <stop offset="50%" stopColor="#7E22CE" />
+      <stop offset="100%" stopColor="#4C1D95" />
+    </linearGradient>
+    <linearGradient id="nexus-bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#1E1B18" />
+      <stop offset="100%" stopColor="#0B0A09" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background Squircle -->
+  <rect x="4" y="4" width="92" height="92" rx="26" fill="url(#nexus-bg-grad)" stroke="#38BDF8" stroke-opacity="0.3" stroke-width="2"/>
+
+  <!-- Left Pillar -->
+  <path d="M26 72V30C26 27.2386 28.2386 25 31 25H35C37.7614 25 40 27.2386 40 30V72C40 74.7614 37.7614 77 35 77H31C28.2386 77 26 74.7614 26 72Z" fill="url(#nexus-grad-1)"/>
+
+  <!-- Diagonal Connector -->
+  <path d="M31.5 25.5C33.5 23.5 37 24.5 39 27L68.5 72.5C70.5 75.5 68.5 78.5 65 78.5H59C56 78.5 53.5 76.5 51.5 73.5L28.5 31C27 28.5 29 25.5 31.5 25.5Z" fill="url(#nexus-grad-diag)"/>
+
+  <!-- Right Pillar -->
+  <path d="M60 70V28C60 25.2386 62.2386 23 65 23H69C71.7614 23 74 25.2386 74 28V70C74 72.7614 71.7614 75 69 75H65C62.2386 75 60 72.7614 60 70Z" fill="url(#nexus-grad-2)"/>
+
+  <!-- Center Glowing Core -->
+  <circle cx="50" cy="50" r="4" fill="#FFFFFF"/>
+</svg>

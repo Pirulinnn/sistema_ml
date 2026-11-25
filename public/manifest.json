@@ -1,0 +1,21 @@
+{
+  "name": "Nexus ML",
+  "short_name": "Nexus ML",
+  "description": "Command Center de Inventario y Publicaciones de Mercado Libre",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0a09",
+  "theme_color": "#0b0a09",
+  "icons": [
+    {
+      "src": "/nexus-logo.jpg",
+      "sizes": "1024x1024",
+      "type": "image/jpeg"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
