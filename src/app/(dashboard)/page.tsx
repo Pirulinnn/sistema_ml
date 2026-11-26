@@ -238,6 +238,43 @@ export default function DashboardPage() {
     setTimeFilter('alertas');
   };
 
+  // Ajuste rápido de stock físico in-line (+1 / -1)
+  const handleQuickUpdateStock = async (id: string, delta: number) => {
+    const item = publicaciones.find((p) => p.id === id);
+    if (!item) return;
+
+    const nuevoStock = Math.max(0, (item.stock_fisico || 0) + delta);
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    // Actualización optimista inmediata en interfaz
+    setPublicaciones((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, stock_fisico: nuevoStock } : p))
+    );
+
+    const { error } = await supabase
+      .from('publicaciones')
+      .update({ stock_fisico: nuevoStock })
+      .eq('id', id);
+
+    if (error) {
+      alert(`Error al actualizar stock: ${error.message}`);
+      await cargarPublicaciones();
+      return;
+    }
+
+    if (user) {
+      await supabase.from('historial_actualizaciones').insert({
+        publicacion_id: id,
+        user_id: user.id,
+        tipo_cambio: 'Stock',
+        nota: `Ajuste rápido de stock físico: ${delta > 0 ? `+${delta}` : delta} (Nuevo valor: ${nuevoStock})`,
+      });
+    }
+  };
+
   // Manejadores de Selección y Edición Masiva
   const handleToggleSelect = (id: string) => {
     setSelectedIds((prev) =>
@@ -271,7 +308,7 @@ export default function DashboardPage() {
 
     if (!user) throw new Error('Sesión no válida.');
 
-    // 1. Caso especial: Sincronizar Físico = Publicado
+    // 1. Caso A: Sincronizar Físico = Publicado
     if (changes.syncFisicoFromPublicado) {
       const seleccionados = publicaciones.filter((p) => selectedIds.includes(p.id));
       for (const item of seleccionados) {
@@ -280,27 +317,51 @@ export default function DashboardPage() {
           .update({ stock_fisico: item.stock_publicado })
           .eq('id', item.id);
       }
-    } else {
-      // 2. Actualización de campos directos
-      const updateData: PublicacionUpdate = {};
+    }
+
+    // 2. Caso B: Ajuste de Precio porcentual individual
+    if (changes.applyPrecio && changes.modoPrecio === 'porcentaje' && changes.porcentajeAjuste !== undefined) {
+      const factor = 1 + changes.porcentajeAjuste / 100;
+      const seleccionados = publicaciones.filter((p) => selectedIds.includes(p.id));
+      for (const item of seleccionados) {
+        const nuevoPrecio = Number((Number(item.precio_usd) * factor).toFixed(2));
+        await supabase
+          .from('publicaciones')
+          .update({ precio_usd: Math.max(0, nuevoPrecio) })
+          .eq('id', item.id);
+      }
+    }
+
+    // 3. Caso C: Actualización de campos comunes directos
+    const updateData: PublicacionUpdate = {};
+    if (changes.applyStock && !changes.syncFisicoFromPublicado) {
       if (changes.stockFisico !== undefined) updateData.stock_fisico = changes.stockFisico;
       if (changes.stockPublicado !== undefined) updateData.stock_publicado = changes.stockPublicado;
+    }
+    if (changes.applyTipo) {
       if (changes.tipoPublicacion !== undefined) updateData.tipo_publicacion = changes.tipoPublicacion;
       if (changes.porcentajeComision !== undefined) updateData.porcentaje_comision = changes.porcentajeComision;
-      if (changes.estado !== undefined) updateData.estado = changes.estado;
+    }
+    if (changes.applyEstado && changes.estado !== undefined) {
+      updateData.estado = changes.estado;
+    }
+    if (changes.applyPrecio && changes.modoPrecio === 'fijo' && changes.precioFijo !== undefined) {
+      updateData.precio_usd = changes.precioFijo;
+    }
+    if (changes.applySeo) {
       if (changes.portadaFondoBlanco !== undefined) updateData.portada_fondo_blanco = changes.portadaFondoBlanco;
       if (changes.fichaTecnicaCompleta !== undefined) updateData.ficha_tecnica_completa = changes.fichaTecnicaCompleta;
       if (changes.palabrasClaveSeo !== undefined) updateData.palabras_clave_seo = changes.palabrasClaveSeo;
       if (changes.envioGratis !== undefined) updateData.envio_gratis = changes.envioGratis;
+    }
 
-      if (Object.keys(updateData).length > 0) {
-        const { error } = await supabase
-          .from('publicaciones')
-          .update(updateData)
-          .in('id', selectedIds);
+    if (Object.keys(updateData).length > 0) {
+      const { error } = await supabase
+        .from('publicaciones')
+        .update(updateData)
+        .in('id', selectedIds);
 
-        if (error) throw error;
-      }
+      if (error) throw error;
     }
 
     // Registrar auditoría para cada producto afectado
@@ -569,6 +630,7 @@ export default function DashboardPage() {
                 onToggleSelect={handleToggleSelect}
                 onSelectAll={handleSelectAll}
                 onClearSelection={handleClearSelection}
+                onQuickStockUpdate={handleQuickUpdateStock}
               />
             </>
           )}

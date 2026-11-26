@@ -9,13 +9,16 @@ import {
   Trash2,
   X,
   Layers,
+  DollarSign,
+  Sparkles,
 } from 'lucide-react';
+import { BulkEditField } from './BulkEditModal';
 
 interface BulkActionBarProps {
   selectedCount: number;
   totalCount: number;
   onClearSelection: () => void;
-  onOpenBulkEdit: (tab: 'stock' | 'tipo' | 'estado' | 'seo') => void;
+  onOpenBulkEdit: (tab: BulkEditField) => void;
   onDeleteSelected: () => void;
   isDeleting?: boolean;
 }
@@ -84,13 +87,31 @@ export function BulkActionBar({
             <span>Estado</span>
           </button>
 
-          {/* 4. Calidad SEO */}
+          {/* 4. Precios */}
+          <button
+            onClick={() => onOpenBulkEdit('precio')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 text-xs font-bold transition"
+          >
+            <DollarSign className="w-3.5 h-3.5" />
+            <span>Precios</span>
+          </button>
+
+          {/* 5. Calidad SEO */}
           <button
             onClick={() => onOpenBulkEdit('seo')}
             className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 text-purple-300 text-xs font-bold transition"
           >
             <CheckCircle2 className="w-3.5 h-3.5" />
             <span>Calidad SEO</span>
+          </button>
+
+          {/* 6. Edición Múltiple Completa */}
+          <button
+            onClick={() => onOpenBulkEdit('stock')}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-cyan-500/20 to-purple-500/20 hover:from-cyan-500/30 hover:to-purple-500/30 border border-cyan-400/40 text-white text-xs font-extrabold transition shadow-sm"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-cyan-300" />
+            <span>Múltiples Cambios</span>
           </button>
 
           {/* Separador */}

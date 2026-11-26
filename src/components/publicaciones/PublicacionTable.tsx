@@ -29,6 +29,7 @@ interface PublicacionTableProps {
   onToggleSelect?: (id: string) => void;
   onSelectAll?: () => void;
   onClearSelection?: () => void;
+  onQuickStockUpdate?: (id: string, delta: number) => Promise<void>;
 }
 
 export function PublicacionTable({
@@ -45,6 +46,7 @@ export function PublicacionTable({
   onToggleSelect,
   onSelectAll,
   onClearSelection,
+  onQuickStockUpdate,
 }: PublicacionTableProps) {
   const [itemParaEliminar, setItemParaEliminar] = useState<Publicacion | null>(null);
   const { formatearBs } = useExchangeRate();
@@ -314,17 +316,41 @@ export function PublicacionTable({
                     {/* Físico / Publicado */}
                     <td className="py-4 px-3 text-center">
                       <div className="inline-flex items-center gap-2 font-mono">
-                        <span
-                          className={`px-3 py-1 rounded-lg font-black text-sm sm:text-base ${
-                            critico
-                              ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                              : 'bg-white/10 text-white border border-white/10'
-                          }`}
-                          title="Físico en almacén"
-                        >
-                          {item.stock_fisico}
-                        </span>
+                        {/* Control rápido de Stock Físico con botones +/- */}
+                        <div className="inline-flex items-center rounded-lg bg-black/50 border border-white/10 p-0.5">
+                          {onQuickStockUpdate && (
+                            <button
+                              onClick={() => onQuickStockUpdate(item.id, -1)}
+                              disabled={(item.stock_fisico || 0) <= 0}
+                              className="w-5 h-6 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 rounded font-bold text-xs transition disabled:opacity-20"
+                              title="Restar 1 al stock físico"
+                            >
+                              -
+                            </button>
+                          )}
+                          <span
+                            className={`px-2.5 py-0.5 rounded font-black text-sm sm:text-base ${
+                              critico
+                                ? 'bg-amber-500/20 text-amber-300'
+                                : 'text-white'
+                            }`}
+                            title="Físico en almacén"
+                          >
+                            {item.stock_fisico}
+                          </span>
+                          {onQuickStockUpdate && (
+                            <button
+                              onClick={() => onQuickStockUpdate(item.id, 1)}
+                              className="w-5 h-6 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 rounded font-bold text-xs transition"
+                              title="Sumar 1 al stock físico"
+                            >
+                              +
+                            </button>
+                          )}
+                        </div>
+
                         <span className="text-white/30 text-base font-bold">/</span>
+
                         <span
                           className={`px-3 py-1 rounded-lg font-black text-sm sm:text-base ${
                             sobreventa
@@ -448,13 +474,35 @@ export function PublicacionTable({
 
                 {/* Stock y Acciones Móvil */}
                 <div className="flex items-center justify-between pt-1">
-                  <div className="flex items-center gap-3 font-mono">
+                  <div className="flex items-center gap-2 font-mono">
+                    <span className="text-xs text-white/60">Físico:</span>
+                    <div className="inline-flex items-center rounded-lg bg-black/40 border border-white/10 p-0.5">
+                      {onQuickStockUpdate && (
+                        <button
+                          onClick={() => onQuickStockUpdate(item.id, -1)}
+                          disabled={(item.stock_fisico || 0) <= 0}
+                          className="w-5 h-5 flex items-center justify-center text-white/50 hover:text-white rounded text-xs disabled:opacity-20"
+                        >
+                          -
+                        </button>
+                      )}
+                      <strong className={`text-sm px-1.5 font-black ${critico ? 'text-amber-300' : 'text-white'}`}>
+                        {item.stock_fisico}
+                      </strong>
+                      {onQuickStockUpdate && (
+                        <button
+                          onClick={() => onQuickStockUpdate(item.id, 1)}
+                          className="w-5 h-5 flex items-center justify-center text-white/50 hover:text-white rounded text-xs"
+                        >
+                          +
+                        </button>
+                      )}
+                    </div>
+
+                    <span className="text-white/30">|</span>
+
                     <span className="text-xs text-white/60">
-                      Físico: <strong className={`text-sm px-2 py-0.5 rounded ${critico ? 'bg-amber-500/20 text-amber-300' : 'text-white'}`}>{item.stock_fisico}</strong>
-                    </span>
-                    <span className="text-white/20">|</span>
-                    <span className="text-xs text-white/60">
-                      ML: <strong className={`text-sm px-2 py-0.5 rounded ${sobreventa ? 'bg-rose-500/20 text-rose-300' : 'text-cyan-300'}`}>{item.stock_publicado}</strong>
+                      ML: <strong className={`text-sm px-2 py-0.5 rounded font-black ${sobreventa ? 'bg-rose-500/20 text-rose-300' : 'text-cyan-300'}`}>{item.stock_publicado}</strong>
                     </span>
                   </div>
 
