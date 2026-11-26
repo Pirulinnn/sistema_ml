@@ -155,13 +155,24 @@ export async function parseMercadoLibreFile(
       0;
     const precio = cleanPrice(rawPrecio);
 
-    // 5. Encontrar Stock Publicado
+    // 5. Encontrar Stock Publicado (soporte exhaustivo para todas las variantes de planillas de ML)
     const rawStock =
       rowNorm['stock disponible'] ||
       rowNorm['cantidad disponible'] ||
+      rowNorm['unidades disponibles'] ||
       rowNorm['stock publicado'] ||
+      rowNorm['stock actual'] ||
       rowNorm['stock'] ||
       rowNorm['cantidad'] ||
+      rowNorm['cantidad total'] ||
+      rowNorm['disponible'] ||
+      rowNorm['disponibles'] ||
+      rowNorm['unidades'] ||
+      rowNorm['inventario'] ||
+      rowNorm['existencia'] ||
+      rowNorm['existencias'] ||
+      rowNorm['unidades en stock'] ||
+      rowNorm['quantity'] ||
       0;
     const stockPublicado = cleanStock(rawStock);
     const stockFisico = inicializarStockFisicoIgual ? stockPublicado : 0;

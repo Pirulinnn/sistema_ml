@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { Publicacion, PublicacionInsert, TipoCambioAuditoria } from '@/types/database';
+import { Publicacion, PublicacionInsert, PublicacionUpdate, TipoCambioAuditoria } from '@/types/database';
 import { Navbar } from '@/components/layout/Navbar';
 import { KpiCards } from '@/components/dashboard/KpiCards';
 import { InventoryChart } from '@/components/dashboard/InventoryChart';
@@ -13,6 +13,8 @@ import { PublicacionModal } from '@/components/publicaciones/PublicacionModal';
 import { HistorialDrawer } from '@/components/publicaciones/HistorialDrawer';
 import { ImportModal } from '@/components/publicaciones/ImportModal';
 import { AnalyticsDashboard } from '@/components/dashboard/AnalyticsDashboard';
+import { BulkActionBar } from '@/components/publicaciones/BulkActionBar';
+import { BulkEditModal, BulkEditChanges, BulkEditField } from '@/components/publicaciones/BulkEditModal';
 import { BottomDock } from '@/components/layout/BottomDock';
 import { exportarPublicacionesACSV } from '@/lib/utils/exportCsv';
 import {
@@ -45,6 +47,12 @@ export default function DashboardPage() {
   // Historial Drawer
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [publicacionParaHistorial, setPublicacionParaHistorial] = useState<Publicacion | null>(null);
+
+  // Selección múltiple y acciones masivas
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isBulkEditModalOpen, setIsBulkEditModalOpen] = useState(false);
+  const [bulkEditTab, setBulkEditTab] = useState<BulkEditField>('stock');
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   // Carga inicial
   const cargarPublicaciones = async () => {
@@ -228,6 +236,119 @@ export default function DashboardPage() {
   const handleFiltrarAlertas = () => {
     setActiveTab('alerts');
     setTimeFilter('alertas');
+  };
+
+  // Manejadores de Selección y Edición Masiva
+  const handleToggleSelect = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAll = () => {
+    const allFilteredIds = publicacionesFiltradas.map((p) => p.id);
+    setSelectedIds(allFilteredIds);
+  };
+
+  const handleClearSelection = () => {
+    setSelectedIds([]);
+  };
+
+  const handleOpenBulkEdit = (tab: BulkEditField) => {
+    setBulkEditTab(tab);
+    setIsBulkEditModalOpen(true);
+  };
+
+  const handleApplyBulkChanges = async (
+    changes: BulkEditChanges,
+    actionSummary: string
+  ) => {
+    if (selectedIds.length === 0) return;
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) throw new Error('Sesión no válida.');
+
+    // 1. Caso especial: Sincronizar Físico = Publicado
+    if (changes.syncFisicoFromPublicado) {
+      const seleccionados = publicaciones.filter((p) => selectedIds.includes(p.id));
+      for (const item of seleccionados) {
+        await supabase
+          .from('publicaciones')
+          .update({ stock_fisico: item.stock_publicado })
+          .eq('id', item.id);
+      }
+    } else {
+      // 2. Actualización de campos directos
+      const updateData: PublicacionUpdate = {};
+      if (changes.stockFisico !== undefined) updateData.stock_fisico = changes.stockFisico;
+      if (changes.stockPublicado !== undefined) updateData.stock_publicado = changes.stockPublicado;
+      if (changes.tipoPublicacion !== undefined) updateData.tipo_publicacion = changes.tipoPublicacion;
+      if (changes.porcentajeComision !== undefined) updateData.porcentaje_comision = changes.porcentajeComision;
+      if (changes.estado !== undefined) updateData.estado = changes.estado;
+      if (changes.portadaFondoBlanco !== undefined) updateData.portada_fondo_blanco = changes.portadaFondoBlanco;
+      if (changes.fichaTecnicaCompleta !== undefined) updateData.ficha_tecnica_completa = changes.fichaTecnicaCompleta;
+      if (changes.palabrasClaveSeo !== undefined) updateData.palabras_clave_seo = changes.palabrasClaveSeo;
+      if (changes.envioGratis !== undefined) updateData.envio_gratis = changes.envioGratis;
+
+      if (Object.keys(updateData).length > 0) {
+        const { error } = await supabase
+          .from('publicaciones')
+          .update(updateData)
+          .in('id', selectedIds);
+
+        if (error) throw error;
+      }
+    }
+
+    // Registrar auditoría para cada producto afectado
+    const tipoAuditoria: TipoCambioAuditoria = changes.syncFisicoFromPublicado || changes.stockFisico !== undefined || changes.stockPublicado !== undefined
+      ? 'Stock'
+      : changes.estado !== undefined
+      ? 'Estado'
+      : changes.portadaFondoBlanco !== undefined || changes.fichaTecnicaCompleta !== undefined
+      ? 'SEO/Fotos'
+      : 'General';
+
+    const logs = selectedIds.map((pid) => ({
+      publicacion_id: pid,
+      user_id: user.id,
+      tipo_cambio: tipoAuditoria,
+      nota: actionSummary,
+    }));
+    await supabase.from('historial_actualizaciones').insert(logs);
+
+    await cargarPublicaciones();
+    setSelectedIds([]);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    const confirmacion = window.confirm(
+      `¿Estás seguro de eliminar permanentemente las ${selectedIds.length} publicaciones seleccionadas? Esta acción no se puede deshacer.`
+    );
+    if (!confirmacion) return;
+
+    setIsBulkDeleting(true);
+    const supabase = createClient();
+    try {
+      const { error } = await supabase
+        .from('publicaciones')
+        .delete()
+        .in('id', selectedIds);
+
+      if (error) throw error;
+
+      setPublicaciones((prev) => prev.filter((p) => !selectedIds.includes(p.id)));
+      setSelectedIds([]);
+    } catch (err: unknown) {
+      const e = err as Error;
+      alert(`Error al eliminar en lote: ${e.message}`);
+    } finally {
+      setIsBulkDeleting(false);
+    }
   };
 
   return (
@@ -444,6 +565,10 @@ export default function DashboardPage() {
                 selectedEstado={selectedEstado}
                 onEstadoChange={setSelectedEstado}
                 onAbrirImportar={() => setIsImportModalOpen(true)}
+                selectedIds={selectedIds}
+                onToggleSelect={handleToggleSelect}
+                onSelectAll={handleSelectAll}
+                onClearSelection={handleClearSelection}
               />
             </>
           )}
@@ -459,6 +584,25 @@ export default function DashboardPage() {
           if (tab === 'command') setTimeFilter('todos');
         }}
         totalAlertas={totalAlertas}
+      />
+
+      {/* Barra Flotante de Acciones Masivas */}
+      <BulkActionBar
+        selectedCount={selectedIds.length}
+        totalCount={publicacionesFiltradas.length}
+        onClearSelection={handleClearSelection}
+        onOpenBulkEdit={handleOpenBulkEdit}
+        onDeleteSelected={handleBulkDelete}
+        isDeleting={isBulkDeleting}
+      />
+
+      {/* Modal de Edición Masiva */}
+      <BulkEditModal
+        isOpen={isBulkEditModalOpen}
+        onClose={() => setIsBulkEditModalOpen(false)}
+        selectedCount={selectedIds.length}
+        initialTab={bulkEditTab}
+        onApplyChanges={handleApplyBulkChanges}
       />
 
       {/* Modal Crear / Editar */}
